@@ -1,0 +1,412 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --bg-app-dark: #002117;
+    --bg-app-light: #e6f7f2;
+    --text-app-dark: #ffffff;
+    --text-app-light: #00352f;
+  }
+
+  body {
+    font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', sans-serif;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  /* Material Symbols Font Setup */
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-weight: normal;
+    font-style: normal;
+    font-size: 24px;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    word-wrap: normal;
+    direction: ltr;
+    -webkit-font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+  }
+}
+
+/* Custom styles matching the approved screens */
+.font-display-lg-mobile {
+  font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', sans-serif;
+  font-size: 32px;
+  line-height: 40px;
+  font-weight: 700;
+}
+
+.font-headline-md {
+  font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', sans-serif;
+  font-size: 24px;
+  line-height: 32px;
+  font-weight: 600;
+}
+
+.font-body-lg {
+  font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', sans-serif;
+  font-size: 18px;
+  line-height: 28px;
+  font-weight: 400;
+}
+
+.font-body-md {
+  font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 400;
+}
+
+.font-label-caps {
+  font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', sans-serif;
+  font-size: 14px;
+  line-height: 20px;
+  letter-spacing: 0.02em;
+  font-weight: 600;
+}
+
+.font-ai-spark {
+  font-family: 'IBM Plex Sans Arabic', 'IBM Plex Sans', sans-serif;
+  font-size: 16px;
+  line-height: 24px;
+  font-weight: 500;
+}
+
+/* Glass cards and panel styling */
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
+}
+
+.light .glass-card {
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 104, 83, 0.15);
+  box-shadow: 0 8px 24px 0 rgba(0, 53, 47, 0.08);
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.light .glass-panel {
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(0, 104, 83, 0.15);
+  box-shadow: 0 4px 20px rgba(0, 53, 47, 0.06);
+}
+
+.ai-glow {
+  box-shadow: 0 0 20px rgba(139, 92, 246, 0.3), inset 0 0 20px rgba(139, 92, 246, 0.2);
+}
+
+.ambient-glow {
+  box-shadow: 0 10px 30px -10px rgba(6, 78, 59, 0.08);
+}
+
+.btn-gradient {
+  background: linear-gradient(135deg, #003527 0%, #396477 100%);
+}
+
+.light .btn-gradient {
+  background: linear-gradient(135deg, #006853 0%, #00647d 100%);
+}
+
+.bg-gradient-ai {
+  background: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 100%);
+}
+
+/* Custom scrollbars */
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent; 
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(72, 129, 120, 0.3); 
+  border-radius: 10px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(72, 129, 120, 0.5); 
+}
+
+/* Floating animation */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-8px); }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes pulseSlow {
+  0%, 100% { opacity: 0.8; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.03); }
+}
+
+.animate-pulse-slow {
+  animation: pulseSlow 4s ease-in-out infinite;
+}
+
+/* ==========================================================
+   DYNAMIC LIGHT MODE TEXT VISIBILITY & CONTRAST RULES
+   ========================================================== */
+.light {
+  color-scheme: light;
+}
+
+/* 1. BOTTOM NAVIGATION CONTRAST & VISIBILITY (LIGHT MODE) */
+.light #unified-bottom-navigation {
+  background-color: rgba(255, 255, 255, 0.98) !important;
+  border-top: 1px solid rgba(0, 104, 83, 0.22) !important;
+  box-shadow: 0 -4px 25px rgba(0, 53, 47, 0.12) !important;
+}
+
+/* Active bottom navigation button in Light Mode */
+.light #unified-bottom-navigation .active-nav-item,
+.light #unified-bottom-navigation button.active-nav-item,
+.light #unified-bottom-navigation button[id^="nav-item-"].active-nav-item {
+  background-color: #006853 !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 14px rgba(0, 104, 83, 0.35) !important;
+}
+
+.light #unified-bottom-navigation .active-nav-item *,
+.light #unified-bottom-navigation button.active-nav-item *,
+.light #unified-bottom-navigation .active-nav-item .nav-icon,
+.light #unified-bottom-navigation .active-nav-item .nav-label,
+.light #unified-bottom-navigation button.active-nav-item span {
+  color: #ffffff !important;
+  fill: #ffffff !important;
+  opacity: 1 !important;
+}
+
+/* Inactive bottom navigation button in Light Mode */
+.light #unified-bottom-navigation .inactive-nav-item,
+.light #unified-bottom-navigation button.inactive-nav-item,
+.light #unified-bottom-navigation button[id^="nav-item-"]:not(.active-nav-item) {
+  color: #004236 !important;
+  background-color: transparent !important;
+}
+
+.light #unified-bottom-navigation .inactive-nav-item *,
+.light #unified-bottom-navigation button.inactive-nav-item *,
+.light #unified-bottom-navigation button[id^="nav-item-"]:not(.active-nav-item) * {
+  color: #004236 !important;
+  fill: #004236 !important;
+  opacity: 1 !important;
+}
+
+.light #unified-bottom-navigation .inactive-nav-item:hover,
+.light #unified-bottom-navigation button.inactive-nav-item:hover,
+.light #unified-bottom-navigation button[id^="nav-item-"]:not(.active-nav-item):hover {
+  background-color: rgba(0, 104, 83, 0.12) !important;
+  color: #00261f !important;
+}
+
+.light #unified-bottom-navigation .inactive-nav-item:hover *,
+.light #unified-bottom-navigation button.inactive-nav-item:hover * {
+  color: #00261f !important;
+  fill: #00261f !important;
+}
+
+/* 2. SUPPORT FOR ALL light: UTILITY CLASSES */
+.light [class*="light:text-[#006853]"] {
+  color: #006853 !important;
+}
+.light [class*="light:text-[#00352f]"] {
+  color: #00352f !important;
+}
+.light [class*="light:text-[#00647d]"] {
+  color: #00647d !important;
+}
+.light [class*="light:text-[#00675d]"] {
+  color: #00675d !important;
+}
+.light [class*="light:text-purple-700"] {
+  color: #7e22ce !important;
+}
+.light [class*="light:text-red-600"] {
+  color: #dc2626 !important;
+}
+.light [class*="light:border-[#006853]/20"] {
+  border-color: rgba(0, 104, 83, 0.2) !important;
+}
+.light [class*="light:border-[#006853]/15"] {
+  border-color: rgba(0, 104, 83, 0.15) !important;
+}
+
+/* 3. ENSURE TEXT OVER DARK IMAGE CARDS & OVERLAYS STAYS CRISP WHITE IN LIGHT MODE */
+.light [class*="bg-gradient-to-t"][class*="from-"] ~ * .text-white,
+.light [class*="bg-gradient-to-t"][class*="from-"] ~ * h3,
+.light [class*="bg-gradient-to-t"][class*="from-"] ~ * h4,
+.light [class*="bg-gradient-to-t"] + div h3,
+.light [class*="bg-gradient-to-t"] + div h4,
+.light [class*="bg-gradient-to-t"] + div span.text-white,
+.light [class*="bg-black/"] .text-white,
+.light [class*="bg-black/"] h3,
+.light [class*="bg-black/"] h4,
+.light [id^="inspiration-recipe-"] h4,
+.light [id^="my-kitchen-recipe-card-"] [id^="recipe-card-title-"],
+.light .dark-surface,
+.light .dark-surface * {
+  color: #ffffff !important;
+}
+
+.light [class*="bg-gradient-to-t"][class*="from-"] ~ * [class*="text-[#00f9cb]"],
+.light [id^="inspiration-recipe-"] [class*="text-[#00f9cb]"] {
+  color: #00f9cb !important;
+}
+
+/* 4. PRESERVE BRIGHT TEXT FOR DARK BUTTONS, BADGES, AND PILLS */
+.light .btn-gradient,
+.light .btn-gradient *,
+.light .bg-gradient-ai,
+.light .bg-gradient-ai *,
+.light [class*="bg-[#00352f]"],
+.light [class*="bg-[#00352f]"] *,
+.light [class*="bg-[#006853]"],
+.light [class*="bg-[#006853]"] *,
+.light [class*="bg-[#001f2a]"],
+.light [class*="bg-[#001f2a]"] *,
+.light [class*="bg-[#fb5151]"],
+.light [class*="bg-[#fb5151]"] *,
+.light [class*="bg-red-500"],
+.light [class*="bg-red-500"] *,
+.light [class*="bg-red-600"],
+.light [class*="bg-red-600"] *,
+.light button[class*="bg-[#006853]"],
+.light button[class*="bg-[#006853]"] * {
+  color: #ffffff !important;
+}
+
+/* 5. HIGH-CONTRAST ACCENTS ON LIGHT SURFACES IN LIGHT MODE */
+.light [class*="text-[#00f9cb]"]:not([class*="bg-"]):not(button.bg-gradient-ai *):not([id^="inspiration-recipe-"] *):not([class*="bg-gradient-to-t"] ~ * *):not(.dark-surface *) {
+  color: #006853 !important;
+}
+
+.light [class*="text-[#42f9e3]"]:not([class*="bg-"]):not(.dark-surface *) {
+  color: #00675d !important;
+}
+
+.light [class*="text-[#0aceff]"]:not([class*="bg-"]):not(.dark-surface *) {
+  color: #00647d !important;
+}
+
+/* 6. CONVERT WHITE TEXT ON LIGHT SURFACES TO HIGH-CONTRAST DEEP EMERALD */
+.light .text-white:not([class*="bg-"]):not([class*="btn-"]):not(button *):not([id^="inspiration-recipe-"] *):not([id^="my-kitchen-recipe-card-"] [id^="recipe-card-title-"]):not([class*="bg-gradient-to-t"] ~ * *):not(.dark-surface *):not(#unified-bottom-navigation *),
+.light [class*="text-white/"]:not([class*="bg-"]):not([class*="btn-"]):not(button *):not([id^="inspiration-recipe-"] *):not([class*="bg-gradient-to-t"] ~ * *):not(.dark-surface *):not(#unified-bottom-navigation *) {
+  color: #00352f !important;
+}
+
+/* 7. INPUTS, LABELS, AND PLACEHOLDERS IN LIGHT MODE */
+.light input, .light textarea, .light select {
+  color: #00352f !important;
+}
+
+.light input::placeholder, .light textarea::placeholder {
+  color: #3b6b63 !important;
+  opacity: 0.9 !important;
+}
+
+.light label {
+  color: #00352f !important;
+  font-weight: 600;
+}
+
+/* ==========================================================
+   TEXT SIZE & MAGNIFIER ACCESSIBILITY SCALING
+   ========================================================== */
+html[data-text-size="large"] {
+  font-size: 18px;
+}
+
+html[data-text-size="large"] .font-display-lg-mobile {
+  font-size: 36px;
+  line-height: 44px;
+}
+
+html[data-text-size="large"] .font-headline-md {
+  font-size: 27px;
+  line-height: 36px;
+}
+
+html[data-text-size="large"] .font-body-lg {
+  font-size: 21px;
+  line-height: 32px;
+}
+
+html[data-text-size="large"] .font-body-md {
+  font-size: 18px;
+  line-height: 28px;
+}
+
+html[data-text-size="large"] .font-label-caps {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+html[data-text-size="large"] .font-ai-spark {
+  font-size: 18px;
+  line-height: 26px;
+}
+
+html[data-text-size="xlarge"] {
+  font-size: 20px;
+}
+
+html[data-text-size="xlarge"] .font-display-lg-mobile {
+  font-size: 40px;
+  line-height: 48px;
+}
+
+html[data-text-size="xlarge"] .font-headline-md {
+  font-size: 30px;
+  line-height: 40px;
+}
+
+html[data-text-size="xlarge"] .font-body-lg {
+  font-size: 23px;
+  line-height: 34px;
+}
+
+html[data-text-size="xlarge"] .font-body-md {
+  font-size: 20px;
+  line-height: 30px;
+}
+
+html[data-text-size="xlarge"] .font-label-caps {
+  font-size: 17px;
+  line-height: 24px;
+}
+
+html[data-text-size="xlarge"] .font-ai-spark {
+  font-size: 20px;
+  line-height: 28px;
+}
+

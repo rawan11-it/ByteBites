@@ -1,0 +1,87 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default-deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Connection test document
+    match /test/connection {
+      allow read: if true;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.userId == userId &&
+        data.name is string && data.name.size() <= 100 &&
+        data.language in ['ar', 'en'] &&
+        data.theme in ['dark', 'light'] &&
+        data.textSize in ['normal', 'large', 'xlarge', 'small', 'medium'] &&
+        (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
+        (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
+    }
+
+    function isValidFridgeIngredient(data, userId) {
+      return data.userId == userId &&
+        data.id is string && data.id.size() <= 128 &&
+        data.name is string && data.name.size() <= 100 &&
+        (!('addedAt' in data) || (data.addedAt is string && data.addedAt.size() <= 64));
+    }
+
+    function isValidSavedRecipe(data, userId) {
+      return data.userId == userId &&
+        data.id is string && data.id.size() <= 128 &&
+        data.title is string && data.title.size() <= 150 &&
+        (!('titleEn' in data) || (data.titleEn is string && data.titleEn.size() <= 150)) &&
+        (!('category' in data) || (data.category is string && data.category.size() <= 50)) &&
+        (!('calories' in data) || (data.calories is string && data.calories.size() <= 20)) &&
+        (!('time' in data) || (data.time is string && data.time.size() <= 50)) &&
+        (!('timeEn' in data) || (data.timeEn is string && data.timeEn.size() <= 50)) &&
+        (!('image' in data) || (data.image is string && data.image.size() <= 2048)) &&
+        (!('aiTip' in data) || (data.aiTip is string && data.aiTip.size() <= 1000)) &&
+        (!('aiTipEn' in data) || (data.aiTipEn is string && data.aiTipEn.size() <= 1000)) &&
+        (!('savedAt' in data) || (data.savedAt is string && data.savedAt.size() <= 64));
+    }
+
+    match /users/{userId} {
+      allow get: if isOwner(userId) && isValidId(userId);
+      allow create: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming(), userId);
+      allow update: if isOwner(userId) && isValidId(userId) && isValidUserProfile(incoming(), userId);
+      allow delete: if isOwner(userId) && isValidId(userId);
+
+      match /fridge/{ingredientId} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(ingredientId) && isValidFridgeIngredient(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(ingredientId) && isValidFridgeIngredient(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(ingredientId);
+      }
+
+      match /savedRecipes/{recipeId} {
+        allow get, list: if isOwner(userId) && isValidId(userId);
+        allow create: if isOwner(userId) && isValidId(userId) && isValidId(recipeId) && isValidSavedRecipe(incoming(), userId);
+        allow update: if isOwner(userId) && isValidId(userId) && isValidId(recipeId) && isValidSavedRecipe(incoming(), userId);
+        allow delete: if isOwner(userId) && isValidId(userId) && isValidId(recipeId);
+      }
+    }
+  }
+}

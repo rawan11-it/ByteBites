@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User account profile and app preferences",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Unique identifier of the user",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "User display name",
+          "maxLength": 100
+        },
+        "email": {
+          "type": "string",
+          "description": "User email address if authenticated",
+          "maxLength": 150
+        },
+        "language": {
+          "type": "string",
+          "description": "Preferred UI language (ar or en)",
+          "enum": ["ar", "en"],
+          "maxLength": 5
+        },
+        "theme": {
+          "type": "string",
+          "description": "Preferred UI color theme (dark or light)",
+          "enum": ["dark", "light"],
+          "maxLength": 10
+        },
+        "textSize": {
+          "type": "string",
+          "description": "Preferred font scale (normal, large, xlarge, small, medium)",
+          "enum": ["normal", "large", "xlarge", "small", "medium"],
+          "maxLength": 10
+        },
+        "updatedAt": {
+          "type": "string",
+          "description": "Timestamp of last update",
+          "maxLength": 64
+        }
+      },
+      "required": ["userId", "name", "language", "theme", "textSize"]
+    },
+    "FridgeIngredient": {
+      "title": "FridgeIngredient",
+      "description": "An ingredient stored in the user's smart fridge inventory",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Identifier of the ingredient entry",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "Owner user ID",
+          "maxLength": 128
+        },
+        "name": {
+          "type": "string",
+          "description": "Name of the ingredient",
+          "maxLength": 100
+        },
+        "addedAt": {
+          "type": "string",
+          "description": "Timestamp when added",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "userId", "name"]
+    },
+    "SavedRecipe": {
+      "title": "SavedRecipe",
+      "description": "A recipe saved to user's favorites",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Recipe ID",
+          "maxLength": 128
+        },
+        "userId": {
+          "type": "string",
+          "description": "User ID who saved the recipe",
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "description": "Arabic title of the recipe",
+          "maxLength": 150
+        },
+        "titleEn": {
+          "type": "string",
+          "description": "English title of the recipe",
+          "maxLength": 150
+        },
+        "category": {
+          "type": "string",
+          "description": "Category of the recipe",
+          "maxLength": 50
+        },
+        "calories": {
+          "type": "string",
+          "description": "Estimated calories",
+          "maxLength": 20
+        },
+        "time": {
+          "type": "string",
+          "description": "Cooking time in Arabic",
+          "maxLength": 50
+        },
+        "timeEn": {
+          "type": "string",
+          "description": "Cooking time in English",
+          "maxLength": 50
+        },
+        "image": {
+          "type": "string",
+          "description": "Image URL",
+          "maxLength": 2048
+        },
+        "aiTip": {
+          "type": "string",
+          "description": "Byte AI recommendation tip",
+          "maxLength": 1000
+        },
+        "aiTipEn": {
+          "type": "string",
+          "description": "Byte AI recommendation tip in English",
+          "maxLength": 1000
+        },
+        "savedAt": {
+          "type": "string",
+          "description": "Timestamp when saved",
+          "maxLength": 64
+        }
+      },
+      "required": ["id", "userId", "title"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "User profile document containing settings and preferences"
+    },
+    "/users/{userId}/fridge/{ingredientId}": {
+      "schema": "FridgeIngredient",
+      "description": "Items in the user's refrigerator"
+    },
+    "/users/{userId}/savedRecipes/{recipeId}": {
+      "schema": "SavedRecipe",
+      "description": "User's saved/favorited recipes"
+    }
+  }
+}
