@@ -12,7 +12,7 @@ export const WelcomeScreen: React.FC = () => {
     if (inputName.trim()) {
       setUserName(inputName.trim());
     } else {
-      setUserName(language === 'ar' ? 'روان' : 'Rawan');
+      setUserName('');
     }
     navigateTo('home');
   };
@@ -24,7 +24,7 @@ export const WelcomeScreen: React.FC = () => {
     if (inputName.trim()) {
       setUserName(inputName.trim());
     } else {
-      setUserName(language === 'ar' ? 'روان' : 'Rawan');
+      setUserName('');
     }
     navigateTo('home');
   };

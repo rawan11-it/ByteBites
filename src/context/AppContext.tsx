@@ -98,7 +98,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   });
 
   const [userName, setUserNameState] = useState<string>(() => {
-    return localStorage.getItem(`${LOCAL_STORAGE_KEY}_user`) || 'روان';
+    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_user`);
+    if (!saved || saved === 'روان' || saved === 'Rawan') {
+      return '';
+    }
+    return saved;
   });
 
   const [currentPage, setCurrentPageState] = useState<Page>('welcome');
@@ -444,7 +448,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const setUserName = (name: string) => {
     const trimmed = name.trim();
-    const finalName = trimmed.length > 0 ? trimmed : (language === 'ar' ? 'روان' : 'Rawan');
+    const finalName = trimmed;
     setUserNameState(finalName);
     localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, finalName);
     fetch('/api/user/profile', {
