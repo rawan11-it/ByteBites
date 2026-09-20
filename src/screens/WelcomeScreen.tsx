@@ -183,8 +183,8 @@ export const WelcomeScreen: React.FC = () => {
             type="button"
             onClick={handleGuestLogin}
             disabled={isLoadingGuest || isLoadingGoogle}
-            style={{ height: '43.6px' }}
-            className={`w-full h-[43.6px] px-4 sm:px-6 rounded-full font-headline-md text-sm sm:text-base transition-all active:scale-95 duration-200 cursor-pointer flex items-center justify-center gap-2 font-bold shadow-md ${
+            style={{ height: '39.6px' }}
+            className={`w-full h-[39.6px] px-4 sm:px-6 rounded-full font-headline-md text-sm sm:text-base transition-all active:scale-95 duration-200 cursor-pointer flex items-center justify-center gap-2 font-bold shadow-md ${
               isDark
                 ? 'bg-[#00f9cb] hover:bg-[#00e2b8] text-[#00352f] shadow-[#00f9cb]/25 border border-[#00f9cb]/40'
                 : 'bg-[#006853] hover:bg-[#005443] text-white shadow-[#006853]/20 border border-[#006853]/30'
