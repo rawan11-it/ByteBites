@@ -5,11 +5,26 @@ import { RecipeDetailView } from '../components/RecipeDetailView';
 import { initialRecipes } from '../data/recipes';
 
 export const HomeScreen: React.FC = () => {
-  const { userName, navigateTo, t, theme, language } = useApp();
+  const { userName, navigateTo, t, theme, language, gender, isGoogleLoggedIn } = useApp();
   const isDark = theme === 'dark';
   const isRtl = language === 'ar';
 
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+
+  const getGreetingTitle = () => {
+    if (language === 'ar') {
+      const hasRealName = Boolean(userName && userName.trim() && userName !== 'ضيف بايت' && isGoogleLoggedIn);
+      if (gender === 'female') {
+        return hasRealName ? `حي الله ضيفتنا ${userName} 👋` : 'حي الله ضيفتنا 👋';
+      }
+      if (gender === 'male') {
+        return hasRealName ? `حي الله ضيفنا ${userName} 👋` : 'حي الله ضيفنا 👋';
+      }
+      return hasRealName ? `أهلاً بك ${userName} 👋` : 'حي الله ضيفنا 👋';
+    }
+    const hasRealName = Boolean(userName && userName.trim() && userName !== 'ضيف بايت' && isGoogleLoggedIn);
+    return hasRealName ? `Welcome ${userName} 👋` : 'Welcome Guest 👋';
+  };
 
   const handleOpenRecipe = (recipeId: string) => {
     const found = initialRecipes?.find((r) => r.id === recipeId) || initialRecipes?.[0] || null;
@@ -43,7 +58,7 @@ export const HomeScreen: React.FC = () => {
       {/* Welcome Section */}
       <section className="mb-6">
         <h2 className={`font-headline-md text-2xl md:text-3xl font-bold ${isDark ? 'text-[#00f9cb]' : 'text-[#006853]'} mb-1`}>
-          {t.home.greeting} {userName} 👋
+          {getGreetingTitle()}
         </h2>
         <p className={`font-body-md text-base ${isDark ? 'text-white/70' : 'text-[#00352f]/80'}`}>
           {t.home.greetingSub}

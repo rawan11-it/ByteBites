@@ -145,12 +145,12 @@ app.post("/api/user/profile", (req, res) => {
   }
 });
 
-// Update user preferences (language, theme, text size)
+// Update user preferences (language, theme, text size, gender)
 app.post("/api/user/preferences", (req, res) => {
   try {
-    const { userId, language, theme, textSize } = req.body;
+    const { userId, language, theme, textSize, gender } = req.body;
     if (!userId) return res.status(400).json({ success: false, error: "userId is required" });
-    saveUserPreferences(userId, { language, theme, textSize });
+    saveUserPreferences(userId, { language, theme, textSize, gender });
     res.json({ success: true });
   } catch (err: any) {
     console.error("Error saving preferences:", err);
@@ -312,12 +312,22 @@ app.get("/api/chat/history", (req, res) => {
 // 1. POST /api/ai/recipe - Byte Recipe Generation for Wheel & Saver
 app.post("/api/ai/recipe", async (req, res) => {
   try {
-    const { promptType, category, ingredients, language = "ar", userId, useSavedIngredients } = req.body;
+    const { promptType, category, ingredients, language = "ar", userId, useSavedIngredients, gender } = req.body;
     const ai = getGenAI();
 
     // Resolve ingredients: if not explicitly passed but user asked to use saved ingredients, fetch from database
     let activeIngredients = Array.isArray(ingredients) ? ingredients : [];
     const effectiveUserId = userId || "guest_default";
+
+    let userGender = gender;
+    if (!userGender) {
+      try {
+        const prefs = getUserPreferences(effectiveUserId);
+        userGender = prefs?.gender || null;
+      } catch (err) {
+        // ignore
+      }
+    }
 
     if (activeIngredients.length === 0 && (useSavedIngredients || promptType === "wheel")) {
       const dbIngredients = getUserFridgeIngredients(effectiveUserId);
@@ -380,6 +390,18 @@ CRITICAL RECIPE INTELLIGENCE:
       console.error("Error adding user recipes to recipe prompt:", err);
     }
 
+    let genderInstruction = "";
+    if (userGender === "male") {
+      genderInstruction = `
+- USER GENDER PREFERENCE: MALE (ذكر). When speaking Arabic (especially in 'aiTip'), address the user using masculine Arabic wording (e.g. 'أهلاً بك', 'ضيفنا', 'تفضل', 'عوافي عليك', 'وصفتك'). Never use feminine verb endings or pronouns.`;
+    } else if (userGender === "female") {
+      genderInstruction = `
+- USER GENDER PREFERENCE: FEMALE (أنثى). When speaking Arabic (especially in 'aiTip'), address the user using feminine Arabic wording (e.g. 'أهلاً بكِ', 'ضيفتنا', 'تفضلي', 'عوافي عليكِ', 'وصفتكِ'). Never use masculine verb endings or pronouns.`;
+    } else {
+      genderInstruction = `
+- USER GENDER PREFERENCE: NOT SPECIFIED (غير محدد). Avoid assuming masculine or feminine wording; keep phrasing welcoming and neutral.`;
+    }
+
     const systemInstruction = `You are 'Byte' (بايت), the friendly, culinary genius AI assistant for ByteBites.
 Byte's personality in Arabic: Warm, inviting, natural Saudi culinary phrasing (e.g. 'حي الله', 'عوافي', 'خلّ النار هادية', 'ولا أسهل').
 Your task is to generate complete, highly appealing, structured recipe details.
@@ -390,7 +412,7 @@ Language rules:
 - In 'instructions', provide 3 to 5 clear sequential steps.
 - In 'aiTip', provide Byte's signature expert chef cooking tip/hack ('نصيحة من بايت') tailored specifically to this exact dish.
 - Provide realistic estimates for protein, carbs, fat, calories, and time.
-- Output strictly in valid JSON matching the schema.`;
+- Output strictly in valid JSON matching the schema.${genderInstruction}`;
 
     const response = await generateWithFallback(ai, {
       contents: userPrompt,
@@ -596,7 +618,7 @@ Language rules:
 // 2. POST /api/ai/chat - Multi-turn Interactive Chat with Byte
 app.post("/api/ai/chat", async (req, res) => {
   try {
-    const { messages, language = "ar", userId } = req.body;
+    const { messages, language = "ar", userId, gender } = req.body;
     const ai = getGenAI();
 
     if (!Array.isArray(messages) || messages.length === 0) {
@@ -604,6 +626,15 @@ app.post("/api/ai/chat", async (req, res) => {
     }
 
     const effectiveUserId = userId || "guest_default";
+    let userGender = gender;
+    if (!userGender) {
+      try {
+        const prefs = getUserPreferences(effectiveUserId);
+        userGender = prefs?.gender || null;
+      } catch (err) {
+        // ignore
+      }
+    }
     const lastUserMessage = messages[messages.length - 1];
     if (lastUserMessage && lastUserMessage.role === "user") {
       try {
@@ -671,7 +702,14 @@ ${publicSummary}
 7. If user speaks in Arabic or current language is 'ar', reply in natural, friendly Arabic with cheerful culinary emoji (🍳, 🥦, 👨‍🍳, ✨).
 8. If user speaks in English or current language is 'en', reply in English.
 9. Crucially maintain full conversational context. When users say follow-ups, update or modify the recipe/guidance based on the prior turns.
-10. Keep responses helpful, structured, concise, and inspiring.`;
+10. Keep responses helpful, structured, concise, and inspiring.
+11. GENDER PREFERENCE & DIRECT-ADDRESS DIRECTIVE:${
+      userGender === "male"
+        ? "\n    - The user has chosen MALE (ذكر). In Arabic, you MUST strictly address the user using masculine Arabic wording and grammar (e.g. 'أهلاً بك', 'ضيفنا', 'تفضل', 'ترغب', 'تقدر', 'عوافي عليك', 'وصفتك'). Never use feminine verb endings or pronouns for the user."
+        : userGender === "female"
+        ? "\n    - The user has chosen FEMALE (أنثى). In Arabic, you MUST strictly address the user using feminine Arabic wording and grammar (e.g. 'أهلاً بكِ', 'ضيفتنا', 'تفضلي', 'ترغبين', 'تقدرين', 'عوافي عليكِ', 'وصفتكِ'). Never use masculine verb endings or pronouns for the user."
+        : "\n    - Gender preference is NOT SPECIFIED (غير محدد). Avoid assuming masculine or feminine wording whenever possible; keep phrasing welcoming, courteous, and neutral (e.g. 'أهلاً بك', 'ضيفنا العزيز', 'يسعدنا مساعدتك')."
+    }`;
 
     // Map messages to Gemini contents format
     const contents = messages.map((m: { role: string; content: string }) => ({

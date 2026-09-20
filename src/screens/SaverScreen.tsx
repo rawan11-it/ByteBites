@@ -4,7 +4,7 @@ import { Recipe } from '../types';
 import { RecipeDetailView } from '../components/RecipeDetailView';
 
 export const SaverScreen: React.FC = () => {
-  const { userId, t, theme, language, activeRecipe, fridgeIngredients, setFridgeIngredients, navigateTo, registerRecipe } = useApp();
+  const { userId, t, theme, language, gender, activeRecipe, fridgeIngredients, setFridgeIngredients, navigateTo, registerRecipe } = useApp();
   const isDark = theme === 'dark';
   const isArabic = language === 'ar';
 
@@ -63,6 +63,7 @@ export const SaverScreen: React.FC = () => {
           ingredients,
           language,
           userId,
+          gender,
         }),
       });
 

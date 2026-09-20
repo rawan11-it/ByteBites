@@ -38,6 +38,7 @@ service cloud.firestore {
         data.theme in ['dark', 'light'] &&
         data.textSize in ['normal', 'large', 'xlarge', 'small', 'medium'] &&
         (!('email' in data) || (data.email is string && data.email.size() <= 150)) &&
+        (!('gender' in data) || (data.gender == null || data.gender in ['male', 'female', 'ذكر', 'أنثى', ''])) &&
         (!('updatedAt' in data) || (data.updatedAt is string && data.updatedAt.size() <= 64));
     }
 

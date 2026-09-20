@@ -4,7 +4,7 @@ import { Recipe } from '../types';
 import { RecipeDetailView } from '../components/RecipeDetailView';
 
 export const WheelScreen: React.FC = () => {
-  const { userId, t, theme, language, fridgeIngredients, isWheelIngredientMode, registerRecipe } = useApp();
+  const { userId, t, theme, language, gender, fridgeIngredients, isWheelIngredientMode, registerRecipe } = useApp();
   const isDark = theme === 'dark';
   const isArabic = language === 'ar';
 
@@ -41,6 +41,7 @@ export const WheelScreen: React.FC = () => {
           ingredients: ingredientsToSend,
           language,
           userId,
+          gender,
         }),
       });
 

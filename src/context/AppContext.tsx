@@ -1,11 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
-import { Language, Theme, Page, Recipe, TextSize, RecipeHistoryItem } from '../types';
+import { Language, Theme, Page, Recipe, TextSize, Gender, RecipeHistoryItem } from '../types';
 import { initialRecipes } from '../data/recipes';
 import { translations } from '../translations';
 import { resolveRecipeImage } from '../utils/recipeImageEngine';
 import {
   auth,
   signInWithGoogle,
+  signInAsGuest,
   signOutUser,
   clearActiveSubscriptions,
   syncUserProfileToFirestore,
@@ -23,6 +24,7 @@ interface AppContextType {
   language: Language;
   theme: Theme;
   textSize: TextSize;
+  gender: Gender;
   currentPage: Page;
   userName: string;
   isGoogleLoggedIn: boolean;
@@ -38,12 +40,15 @@ interface AppContextType {
   setLanguage: (lang: Language) => void;
   setTheme: (theme: Theme) => void;
   setTextSize: (size: TextSize) => void;
+  setGender: (gender: Gender) => void;
   navigateTo: (page: Page, recipeId?: string, wheelWithIngredients?: boolean) => void;
   setIsWheelIngredientMode: (active: boolean) => void;
   setUserName: (name: string) => void;
   toggleSaveRecipe: (recipeId: string, recipeObj?: Recipe) => void;
   isRecipeSaved: (recipeId: string) => boolean;
   toggleGoogleLogin: () => void;
+  loginAsGuest: (displayName?: string) => Promise<void>;
+  loginWithGoogle: (fallbackName?: string) => Promise<void>;
   savedRecipesList: Recipe[];
   userKitchenRecipes: Recipe[];
   setFridgeIngredients: React.Dispatch<React.SetStateAction<string[]>>;
@@ -97,6 +102,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return (saved === 'normal' || saved === 'large' || saved === 'xlarge') ? saved : 'normal';
   });
 
+  const [gender, setGenderState] = useState<Gender>(() => {
+    const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_gender_${userId}`) || localStorage.getItem(`${LOCAL_STORAGE_KEY}_gender`);
+    return (saved === 'male' || saved === 'female') ? (saved as Gender) : null;
+  });
+
   const [userName, setUserNameState] = useState<string>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_user`);
     if (!saved || saved === 'روان' || saved === 'Rawan') {
@@ -111,10 +121,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return localStorage.getItem(`${LOCAL_STORAGE_KEY}_is_logged_in`) === 'true';
   });
 
-  const prefsRef = useRef({ language, theme, textSize, userName });
+  const prefsRef = useRef({ language, theme, textSize, userName, gender });
   useEffect(() => {
-    prefsRef.current = { language, theme, textSize, userName };
-  }, [language, theme, textSize, userName]);
+    prefsRef.current = { language, theme, textSize, userName, gender };
+  }, [language, theme, textSize, userName, gender]);
 
   // Sync with Firebase Authentication & Firestore
   useEffect(() => {
@@ -122,10 +132,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        setIsGoogleLoggedIn(true);
+        const isGoogle = !firebaseUser.isAnonymous;
+        setIsGoogleLoggedIn(isGoogle);
         setUserId(firebaseUser.uid);
         localStorage.setItem('bytebites_user_id', firebaseUser.uid);
-        localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, 'true');
+        localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, String(isGoogle));
+
+        const savedUserGender = localStorage.getItem(`${LOCAL_STORAGE_KEY}_gender_${firebaseUser.uid}`) || localStorage.getItem(`${LOCAL_STORAGE_KEY}_gender`);
+        if (savedUserGender === 'male' || savedUserGender === 'female') {
+          setGenderState(savedUserGender as Gender);
+        }
 
         if (firebaseUser.displayName) {
           setUserNameState(firebaseUser.displayName);
@@ -134,6 +150,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (firebaseUser.email) {
           setUserEmail(firebaseUser.email);
           localStorage.setItem(`${LOCAL_STORAGE_KEY}_user_email`, firebaseUser.email);
+        } else if (firebaseUser.isAnonymous) {
+          setUserEmail('');
+          localStorage.removeItem(`${LOCAL_STORAGE_KEY}_user_email`);
         }
 
         setIsFirebaseSyncing(true);
@@ -145,6 +164,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             language: prefsRef.current.language,
             theme: prefsRef.current.theme,
             textSize: prefsRef.current.textSize,
+            gender: (savedUserGender === 'male' || savedUserGender === 'female' ? savedUserGender as Gender : prefsRef.current.gender) || undefined,
           });
 
           // Unsubscribe previous snapshot if any
@@ -247,6 +267,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           const fridge = data.fridgeIngredients || data.data?.fridgeIngredients;
           if (Array.isArray(fridge) && fridge.length > 0) {
             setFridgeIngredientsState(fridge);
+          }
+          if (data.preferences?.gender) {
+            const g = data.preferences.gender;
+            if (g === 'male' || g === 'female') {
+              setGenderState(g);
+              localStorage.setItem(`${LOCAL_STORAGE_KEY}_gender_${userId}`, g);
+              localStorage.setItem(`${LOCAL_STORAGE_KEY}_gender`, g);
+            }
           }
           const recipes = data.savedRecipes || data.data?.savedRecipes;
           if (Array.isArray(recipes)) {
@@ -426,6 +454,34 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const setGender = (newGender: Gender) => {
+    setGenderState(newGender);
+    if (newGender) {
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_gender`, newGender);
+      localStorage.setItem(`${LOCAL_STORAGE_KEY}_gender_${userId}`, newGender);
+    } else {
+      localStorage.removeItem(`${LOCAL_STORAGE_KEY}_gender`);
+      localStorage.removeItem(`${LOCAL_STORAGE_KEY}_gender_${userId}`);
+    }
+
+    fetch('/api/user/preferences', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId, gender: newGender }),
+    }).catch(err => console.error('Error saving gender preference to DB:', err));
+
+    if (auth.currentUser) {
+      syncUserProfileToFirestore(auth.currentUser.uid, {
+        name: userName,
+        email: auth.currentUser.email || undefined,
+        language,
+        theme,
+        textSize,
+        gender: newGender,
+      }).catch(console.error);
+    }
+  };
+
   const addFridgeIngredient = (ingredient: string) => {
     const trimmed = ingredient.trim();
     if (!trimmed) return;
@@ -531,6 +587,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return savedRecipeIds.includes(recipeId);
   };
 
+  const loginAsGuest = async (displayName?: string) => {
+    try {
+      const user = await signInAsGuest();
+      if (user) {
+        setUserId(user.uid);
+        localStorage.setItem('bytebites_user_id', user.uid);
+        setIsGoogleLoggedIn(false);
+        localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, 'false');
+        if (displayName && displayName.trim()) {
+          setUserNameState(displayName.trim());
+          localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, displayName.trim());
+        }
+        if (auth.currentUser) {
+          await syncUserProfileToFirestore(user.uid, {
+            name: displayName?.trim() || userName || 'ضيف بايت',
+            language,
+            theme,
+            textSize,
+            gender: prefsRef.current.gender || undefined,
+          });
+        }
+        fetch('/api/user/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.uid,
+            name: displayName?.trim() || userName || 'ضيف بايت',
+            isGoogle: false,
+            email: '',
+          }),
+        }).catch(err => console.error('Error updating Guest profile in DB:', err));
+      }
+    } catch (err) {
+      console.warn('Guest login error gracefully caught:', err);
+    }
+  };
+
+  const loginWithGoogle = async (fallbackName?: string) => {
+    try {
+      const user = await signInWithGoogle();
+      if (user) {
+        setIsGoogleLoggedIn(true);
+        setUserId(user.uid);
+        localStorage.setItem('bytebites_user_id', user.uid);
+        localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, 'true');
+        const resolvedName = user.displayName || fallbackName?.trim() || userName || '';
+        if (resolvedName) {
+          setUserNameState(resolvedName);
+          localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, resolvedName);
+        }
+        if (user.email) {
+          setUserEmail(user.email);
+          localStorage.setItem(`${LOCAL_STORAGE_KEY}_user_email`, user.email);
+        }
+        await syncUserProfileToFirestore(user.uid, {
+          name: resolvedName,
+          email: user.email || undefined,
+          language,
+          theme,
+          textSize,
+          gender: prefsRef.current.gender || undefined,
+        });
+        fetch('/api/user/profile', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId: user.uid,
+            name: resolvedName,
+            isGoogle: true,
+            email: user.email || '',
+          }),
+        }).catch(err => console.error('Error updating Google login in DB:', err));
+      }
+    } catch (err) {
+      console.error('Firebase Google sign-in failed:', err);
+      throw err;
+    }
+  };
+
   const toggleGoogleLogin = async () => {
     if (isGoogleLoggedIn) {
       try {
@@ -546,35 +681,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         body: JSON.stringify({ userId, name: userName, isGoogle: false, email: '' }),
       }).catch(err => console.error('Error updating Google login in DB:', err));
     } else {
-      try {
-        const user = await signInWithGoogle();
-        if (user) {
-          setIsGoogleLoggedIn(true);
-          setUserId(user.uid);
-          localStorage.setItem('bytebites_user_id', user.uid);
-          localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, 'true');
-          if (user.displayName) {
-            setUserNameState(user.displayName);
-            localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, user.displayName);
-          }
-          if (user.email) {
-            setUserEmail(user.email);
-            localStorage.setItem(`${LOCAL_STORAGE_KEY}_user_email`, user.email);
-          }
-          fetch('/api/user/profile', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              userId: user.uid,
-              name: user.displayName || userName,
-              isGoogle: true,
-              email: user.email || '',
-            }),
-          }).catch(err => console.error('Error updating Google login in DB:', err));
-        }
-      } catch (err) {
-        console.error('Firebase Google sign-in failed:', err);
-      }
+      await loginWithGoogle();
     }
   };
 
@@ -729,6 +836,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         language,
         theme,
         textSize,
+        gender,
         currentPage,
         userName,
         isGoogleLoggedIn,
@@ -744,12 +852,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setLanguage,
         setTheme,
         setTextSize,
+        setGender,
         navigateTo,
         setIsWheelIngredientMode,
         setUserName,
         toggleSaveRecipe,
         isRecipeSaved,
         toggleGoogleLogin,
+        loginAsGuest,
+        loginWithGoogle,
         savedRecipesList,
         userKitchenRecipes,
         setFridgeIngredients,

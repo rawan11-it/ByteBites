@@ -339,6 +339,59 @@
   font-weight: 600;
 }
 
+/* 8. WELCOME / LOGIN SCREEN LIGHT MODE CONTRAST ADAPTATIONS */
+.light #welcome-screen-container {
+  background-color: #e6f7f2 !important;
+  color: #00352f !important;
+}
+
+.light #welcome-screen-container #welcome-app-logo-title {
+  color: #006853 !important;
+}
+
+.light #welcome-screen-container .welcome-divider-line {
+  background-color: rgba(0, 53, 47, 0.2) !important;
+}
+
+.light #welcome-screen-container .welcome-divider-text {
+  color: #00352f !important;
+  opacity: 0.85 !important;
+}
+
+.light #welcome-screen-container #welcome-guest-login-button {
+  background-color: #006853 !important;
+  color: #ffffff !important;
+  border-color: rgba(0, 104, 83, 0.3) !important;
+}
+
+.light #welcome-screen-container #welcome-guest-login-button * {
+  color: #ffffff !important;
+}
+
+.light #welcome-screen-container #welcome-google-signin-button {
+  background-color: #ffffff !important;
+  color: #00352f !important;
+  border-color: rgba(0, 104, 83, 0.25) !important;
+}
+
+.light #welcome-screen-container #welcome-google-signin-button span {
+  color: #00352f !important;
+}
+
+.light #welcome-screen-container .welcome-tagline-badge {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 104, 83, 0.25) !important;
+}
+
+.light #welcome-screen-container .welcome-tagline-text {
+  color: #006853 !important;
+}
+
+.light #welcome-screen-container .welcome-footer-text {
+  color: #00352f !important;
+  opacity: 0.8 !important;
+}
+
 /* ==========================================================
    TEXT SIZE & MAGNIFIER ACCESSIBILITY SCALING
    ========================================================== */

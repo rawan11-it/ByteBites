@@ -1,6 +1,7 @@
 export type Language = 'ar' | 'en';
 export type Theme = 'dark' | 'light';
 export type TextSize = 'normal' | 'large' | 'xlarge';
+export type Gender = 'male' | 'female' | null;
 export type Page = 'welcome' | 'home' | 'wheel' | 'saver' | 'diet' | 'account' | 'chat' | 'recipe' | 'my-kitchen';
 
 export interface RecipeHistoryItem {

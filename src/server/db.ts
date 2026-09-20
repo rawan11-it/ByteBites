@@ -42,10 +42,22 @@ function initializeTables(db: any) {
       language TEXT DEFAULT 'ar',
       theme TEXT DEFAULT 'dark',
       text_size TEXT DEFAULT 'normal',
+      gender TEXT DEFAULT NULL,
       updated_at TEXT,
       FOREIGN KEY (user_id) REFERENCES users(id)
     );
   `);
+
+  // Migration for user_preferences gender column
+  try {
+    const prefCols = db.prepare(`PRAGMA table_info(user_preferences)`).all();
+    const hasGender = prefCols.some((col: any) => col.name === 'gender');
+    if (!hasGender) {
+      db.exec(`ALTER TABLE user_preferences ADD COLUMN gender TEXT DEFAULT NULL;`);
+    }
+  } catch (err) {
+    console.warn('Migration warning checking gender on user_preferences:', err);
+  }
 
   // Saved refrigerator ingredients table
   db.exec(`
@@ -218,35 +230,38 @@ export function getUserPreferences(userId: string) {
   if (!pref) {
     const now = new Date().toISOString();
     db.prepare(`
-      INSERT OR IGNORE INTO user_preferences (user_id, language, theme, text_size, updated_at)
-      VALUES (?, 'ar', 'dark', 'normal', ?)
+      INSERT OR IGNORE INTO user_preferences (user_id, language, theme, text_size, gender, updated_at)
+      VALUES (?, 'ar', 'dark', 'normal', NULL, ?)
     `).run(userId, now);
-    return { language: 'ar', theme: 'dark', text_size: 'normal' };
+    return { language: 'ar', theme: 'dark', text_size: 'normal', gender: null };
   }
   return pref;
 }
 
-export function saveUserPreferences(userId: string, prefs: { language?: string; theme?: string; textSize?: string }) {
+export function saveUserPreferences(userId: string, prefs: { language?: string; theme?: string; textSize?: string; gender?: string | null }) {
   const db = getDatabase();
   const now = new Date().toISOString();
   getOrCreateUser(userId);
   db.prepare(`
-    INSERT INTO user_preferences (user_id, language, theme, text_size, updated_at)
-    VALUES (?, COALESCE(?, 'ar'), COALESCE(?, 'dark'), COALESCE(?, 'normal'), ?)
+    INSERT INTO user_preferences (user_id, language, theme, text_size, gender, updated_at)
+    VALUES (?, COALESCE(?, 'ar'), COALESCE(?, 'dark'), COALESCE(?, 'normal'), ?, ?)
     ON CONFLICT(user_id) DO UPDATE SET
       language = COALESCE(?, language),
       theme = COALESCE(?, theme),
       text_size = COALESCE(?, text_size),
+      gender = COALESCE(?, gender),
       updated_at = ?
   `).run(
     userId,
     prefs.language || null,
     prefs.theme || null,
     prefs.textSize || null,
+    prefs.gender !== undefined ? prefs.gender : null,
     now,
     prefs.language || null,
     prefs.theme || null,
     prefs.textSize || null,
+    prefs.gender !== undefined ? prefs.gender : null,
     now
   );
 }

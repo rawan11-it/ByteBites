@@ -3,6 +3,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInAnonymously,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
@@ -18,7 +19,7 @@ import {
   onSnapshot,
 } from 'firebase/firestore';
 import firebaseConfig from '../firebase-applet-config.json';
-import { Language, Theme, TextSize, Recipe } from './types';
+import { Language, Theme, TextSize, Gender, Recipe } from './types';
 
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
@@ -97,6 +98,49 @@ export async function signInWithGoogle(): Promise<FirebaseUser | null> {
   }
 }
 
+// Auth helper: Guest (Anonymous) sign-in
+// If an authenticated user already exists in the current session, reuse it
+// Tries Firebase Anonymous sign-in; if Anonymous auth is restricted or disabled in the Firebase project console
+// (auth/admin-restricted-operation or auth/operation-not-allowed), smoothly provides a unique guest UID
+export async function signInAsGuest(): Promise<{ uid: string; displayName?: string | null; isAnonymous: boolean } | null> {
+  try {
+    if (auth.currentUser) {
+      return auth.currentUser;
+    }
+    const result = await signInAnonymously(auth);
+    return result.user;
+  } catch (error: any) {
+    if (
+      error?.code === 'auth/admin-restricted-operation' ||
+      error?.code === 'auth/operation-not-allowed'
+    ) {
+      // Anonymous authentication is not enabled on this Firebase project console.
+      // Gracefully generate or retrieve a persistent unique guest UID.
+      let guestUid = localStorage.getItem('bytebites_guest_uid');
+      if (!guestUid) {
+        guestUid = 'guest_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+        localStorage.setItem('bytebites_guest_uid', guestUid);
+      }
+      return {
+        uid: guestUid,
+        displayName: 'ضيف بايت',
+        isAnonymous: true,
+      };
+    }
+    console.warn('Firebase Anonymous sign-in unavailable, fallback to local guest session:', error?.code || error);
+    let guestUid = localStorage.getItem('bytebites_guest_uid');
+    if (!guestUid) {
+      guestUid = 'guest_' + Math.random().toString(36).substring(2, 11) + Date.now().toString(36);
+      localStorage.setItem('bytebites_guest_uid', guestUid);
+    }
+    return {
+      uid: guestUid,
+      displayName: 'ضيف بايت',
+      isAnonymous: true,
+    };
+  }
+}
+
 let activeSubscriptions: (() => void)[] = [];
 
 export function clearActiveSubscriptions() {
@@ -143,6 +187,7 @@ export async function syncUserProfileToFirestore(
     language: Language;
     theme: Theme;
     textSize: TextSize;
+    gender?: Gender;
   }
 ) {
   if (!auth.currentUser || auth.currentUser.uid !== userId) return;
@@ -157,6 +202,7 @@ export async function syncUserProfileToFirestore(
         language: profile.language || 'ar',
         theme: profile.theme || 'dark',
         textSize: profile.textSize || 'normal',
+        gender: profile.gender || null,
         updatedAt: new Date().toISOString(),
       },
       { merge: true }

@@ -5,15 +5,26 @@ import { RecipeDetailView } from '../components/RecipeDetailView';
 import { initialRecipes } from '../data/recipes';
 
 export const ChatScreen: React.FC = () => {
-  const { userId, t, theme, language, persistSavedRecipe, savedRecipesList, allRecipes } = useApp();
+  const { userId, t, theme, language, gender, persistSavedRecipe, savedRecipesList, allRecipes } = useApp();
   const isDark = theme === 'dark';
   const isArabic = language === 'ar';
+
+  const getWelcomeText = () => {
+    if (!isArabic) return t.chat.welcomeMsg;
+    if (gender === 'female') {
+      return 'أهلاً بكِ! أنا بايت 👨‍🍳 كيف يمكنني مساعدتكِ في مطبخكِ اليوم؟ هل تبحثين عن وصفة محددة أم ترغبين في اقتراح شيء بناءً على ما لديكِ في الثلاجة؟';
+    }
+    if (gender === 'male') {
+      return 'أهلاً بك! أنا بايت 👨‍🍳 كيف يمكنني مساعدتك في مطبخك اليوم؟ هل تبحث عن وصفة محددة أم تريد مني اقتراح شيء بناءً على ما لديك في الثلاجة؟';
+    }
+    return t.chat.welcomeMsg;
+  };
 
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: '1',
       sender: 'ai',
-      text: t.chat.welcomeMsg,
+      text: getWelcomeText(),
     },
     {
       id: '2',
@@ -95,6 +106,7 @@ export const ChatScreen: React.FC = () => {
           messages: apiMessages,
           language,
           userId,
+          gender,
         }),
       });
 
@@ -141,7 +153,11 @@ export const ChatScreen: React.FC = () => {
         id: String(Date.now() + 1),
         sender: 'ai',
         text: isArabic
-          ? 'أنا هنا معك! يبدو أن هناك ضغطاً بسيطاً في الشبكة، ولكن يمكنك سؤالي عن أي وصفة أو بدائل وسأجيبك فوراً.'
+          ? (gender === 'female'
+              ? 'أنا هنا معكِ! يبدو أن هناك ضغطاً بسيطاً في الشبكة، ولكن يمكنكِ سؤالي عن أي وصفة أو بدائل وسأجيبكِ فوراً.'
+              : gender === 'male'
+              ? 'أنا هنا معك! يبدو أن هناك ضغطاً بسيطاً في الشبكة، ولكن يمكنك سؤالي عن أي وصفة أو بدائل وسأجيبك فوراً.'
+              : 'أنا هنا معك! يبدو أن هناك ضغطاً بسيطاً في الشبكة، ولكن يمكنك السؤال عن أي وصفة أو بدائل وسأجيب فوراً.')
           : 'I am here with you! There was a small network hiccup, but feel free to ask me anything about recipes or ingredients.',
       };
       setMessages((prev) => [...prev, fallbackMsg]);
@@ -181,6 +197,7 @@ export const ChatScreen: React.FC = () => {
           messages: apiMessages,
           language,
           userId,
+          gender,
         }),
       });
 

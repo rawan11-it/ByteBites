@@ -17,6 +17,8 @@ export const AccountScreen: React.FC = () => {
     setTheme,
     textSize,
     setTextSize,
+    gender,
+    setGender,
     isGoogleLoggedIn,
     isFirebaseSyncing,
     toggleGoogleLogin,
@@ -317,6 +319,53 @@ export const AccountScreen: React.FC = () => {
                 <span>{t.account.darkMode}</span>
               </button>
             </div>
+          </div>
+
+          {/* Gender Row */}
+          <div id="settings-gender-section" className="flex flex-col gap-2 pt-4 border-t border-white/10">
+            <div className="flex items-center justify-between">
+              <span className={`font-body-lg text-sm font-semibold ${isDark ? 'text-white' : 'text-[#00352f]'}`}>
+                {t.account.gender}
+              </span>
+              <div
+                className={`flex rounded-full p-1 border ${
+                  isDark ? 'bg-white/10 border-white/10' : 'bg-[#aef6e9]/50 border-[#006853]/15'
+                }`}
+              >
+                <button
+                  type="button"
+                  id="gender-btn-male"
+                  onClick={() => setGender(gender === 'male' ? null : 'male')}
+                  className={`px-3.5 py-1.5 rounded-full font-label-caps text-xs transition-all cursor-pointer ${
+                    gender === 'male'
+                      ? 'bg-[#00f9cb] text-[#00352f] font-bold shadow-sm'
+                      : isDark
+                      ? 'text-white/70 hover:text-white'
+                      : 'text-[#00352f]/70 hover:text-[#00352f]'
+                  }`}
+                >
+                  {t.account.genderMale}
+                </button>
+                <button
+                  type="button"
+                  id="gender-btn-female"
+                  onClick={() => setGender(gender === 'female' ? null : 'female')}
+                  className={`px-3.5 py-1.5 rounded-full font-label-caps text-xs transition-all cursor-pointer ${
+                    gender === 'female'
+                      ? 'bg-[#00f9cb] text-[#00352f] font-bold shadow-sm'
+                      : isDark
+                      ? 'text-white/70 hover:text-white'
+                      : 'text-[#00352f]/70 hover:text-[#00352f]'
+                  }`}
+                >
+                  {t.account.genderFemale}
+                </button>
+              </div>
+            </div>
+            {/* Explanatory Note */}
+            <p className={`text-xs leading-relaxed ${isDark ? 'text-white/60' : 'text-[#00352f]/70'}`}>
+              {t.account.genderNote}
+            </p>
           </div>
 
           {/* Quick Chat Row / Button in Settings */}
