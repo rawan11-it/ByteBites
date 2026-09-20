@@ -161,7 +161,7 @@ export const WelcomeScreen: React.FC = () => {
         {/* Responsive Mascot Circular Frame (Expanded size for prominence) */}
         <div 
           id="welcome-mascot-frame"
-          className={`relative w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 rounded-full overflow-hidden border-4 sm:border-[5px] backdrop-blur-sm group hover:scale-105 transition-all duration-500 ring-2 sm:ring-4 flex items-center justify-center shrink-0 ${
+          className={`relative w-56 h-56 sm:w-64 sm:h-64 md:w-80 md:h-80 rounded-full overflow-hidden border-4 sm:border-[5px] backdrop-blur-sm group hover:scale-105 transition-all duration-500 ring-2 sm:ring-4 flex items-center justify-center shrink-0 ${
             isDark
               ? 'border-[#00f9cb]/60 shadow-[0_16px_50px_rgba(0,0,0,0.75)] bg-[#0d2a22]/90 ring-white/10'
               : 'border-[#006853]/40 shadow-[0_14px_40px_rgba(0,104,83,0.2)] bg-white ring-[#006853]/15'
@@ -176,7 +176,7 @@ export const WelcomeScreen: React.FC = () => {
         </div>
 
         {/* Authentication Options: Guest or Google */}
-        <div className="w-full mt-4 sm:mt-6 space-y-2.5 sm:space-y-3">
+        <div className="w-full mt-12 sm:mt-14 space-y-2.5 sm:space-y-3">
           {/* Option 1: Continue / Sign in as Guest (Anonymous Auth) */}
           <button
             id="welcome-guest-login-button"
