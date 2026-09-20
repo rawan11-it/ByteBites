@@ -358,6 +358,10 @@
   opacity: 0.85 !important;
 }
 
+#welcome-guest-login-button {
+  height: 43.6px;
+}
+
 .light #welcome-screen-container #welcome-guest-login-button {
   background-color: #006853 !important;
   color: #ffffff !important;

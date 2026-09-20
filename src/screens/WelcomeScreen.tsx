@@ -157,19 +157,21 @@ export const WelcomeScreen: React.FC = () => {
       </header>
 
       {/* Mascot circular illustration & Auth options */}
-      <div className="flex flex-col items-center justify-center my-1 sm:my-auto w-full max-w-[340px] sm:max-w-sm z-10 px-2">
-        {/* Responsive Mascot Circular Frame */}
+      <div className="flex flex-col items-center justify-center my-1 sm:my-auto w-full max-w-[360px] sm:max-w-md z-10 px-2">
+        {/* Responsive Mascot Circular Frame (Expanded size for prominence) */}
         <div 
-          className={`relative w-36 h-36 sm:w-44 sm:h-44 md:w-52 md:h-52 rounded-full overflow-hidden border-3 sm:border-4 backdrop-blur-sm group hover:scale-105 transition-all duration-500 ring-2 flex items-center justify-center ${
+          id="welcome-mascot-frame"
+          className={`relative w-48 h-48 sm:w-60 sm:h-60 md:w-72 md:h-72 rounded-full overflow-hidden border-4 sm:border-[5px] backdrop-blur-sm group hover:scale-105 transition-all duration-500 ring-2 sm:ring-4 flex items-center justify-center shrink-0 ${
             isDark
-              ? 'border-[#00f9cb]/50 shadow-[0_12px_40px_rgba(0,0,0,0.65)] bg-[#0d2a22]/90 ring-white/10'
-              : 'border-[#006853]/35 shadow-[0_10px_30px_rgba(0,104,83,0.15)] bg-white ring-[#006853]/15'
+              ? 'border-[#00f9cb]/60 shadow-[0_16px_50px_rgba(0,0,0,0.75)] bg-[#0d2a22]/90 ring-white/10'
+              : 'border-[#006853]/40 shadow-[0_14px_40px_rgba(0,104,83,0.2)] bg-white ring-[#006853]/15'
           }`}
         >
           <img
+            id="welcome-mascot-image"
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwb831DohEUgHQiL9pnL8rBEnZs4vE7-NuYXUpkOzFUO7RGZRzXDOaD-OpY_cJDV-dAzJvPiT-ebQiOM5C-2CaBHAER1cT34C1ZC3CVBTPBheO-tpDMym8d7UUaJMcV7thOcLH8mNKmI7ZqXBk7ibzU3CbYdlmJAtCCt7sUxl9KmSNMnGuaWEuilJlDeNJyKVCDu6z5ScLnWGRL64ByBQhRuPzAmMsEh-4mU2P6puBk35jtC5sK58k0TiuZg20W3_PMUsgVd8JDLCnew"
             alt="Byte Robot Mascot"
-            className="w-full h-full object-cover scale-110 drop-shadow-xl"
+            className="w-full h-full object-cover scale-110 drop-shadow-2xl transition-transform duration-500 group-hover:scale-115"
           />
         </div>
 
@@ -181,7 +183,8 @@ export const WelcomeScreen: React.FC = () => {
             type="button"
             onClick={handleGuestLogin}
             disabled={isLoadingGuest || isLoadingGoogle}
-            className={`w-full py-2.5 sm:py-3 px-4 sm:px-6 rounded-full font-headline-md text-sm sm:text-base transition-all active:scale-95 duration-200 cursor-pointer flex items-center justify-center gap-2 font-bold shadow-md ${
+            style={{ height: '43.6px' }}
+            className={`w-full h-[43.6px] px-4 sm:px-6 rounded-full font-headline-md text-sm sm:text-base transition-all active:scale-95 duration-200 cursor-pointer flex items-center justify-center gap-2 font-bold shadow-md ${
               isDark
                 ? 'bg-[#00f9cb] hover:bg-[#00e2b8] text-[#00352f] shadow-[#00f9cb]/25 border border-[#00f9cb]/40'
                 : 'bg-[#006853] hover:bg-[#005443] text-white shadow-[#006853]/20 border border-[#006853]/30'
