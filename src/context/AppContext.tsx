@@ -109,10 +109,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const [userName, setUserNameState] = useState<string>(() => {
     const saved = localStorage.getItem(`${LOCAL_STORAGE_KEY}_user`);
-    if (!saved || saved === 'روان' || saved === 'Rawan') {
-      return '';
-    }
-    return saved;
+    return saved || '';
   });
 
   const [currentPage, setCurrentPageState] = useState<Page>('welcome');
@@ -132,7 +129,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
-        const isGoogle = !firebaseUser.isAnonymous;
+        const isGoogle = !firebaseUser.isAnonymous && (
+          firebaseUser.providerData.some(p => p.providerId === 'google.com' || p.providerId.includes('google')) ||
+          Boolean(firebaseUser.email)
+        );
         setIsGoogleLoggedIn(isGoogle);
         setUserId(firebaseUser.uid);
         localStorage.setItem('bytebites_user_id', firebaseUser.uid);
@@ -143,10 +143,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setGenderState(savedUserGender as Gender);
         }
 
-        if (firebaseUser.displayName) {
+        if (isGoogle && firebaseUser.displayName) {
           setUserNameState(firebaseUser.displayName);
           localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, firebaseUser.displayName);
+        } else if (!isGoogle && !localStorage.getItem(`${LOCAL_STORAGE_KEY}_user`)) {
+          setUserNameState('ضيف بايت');
         }
+
         if (firebaseUser.email) {
           setUserEmail(firebaseUser.email);
           localStorage.setItem(`${LOCAL_STORAGE_KEY}_user_email`, firebaseUser.email);
@@ -157,7 +160,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
         setIsFirebaseSyncing(true);
         try {
-          // Sync profile to Firestore
+          // Sync profile to Firestore non-destructively
           await syncUserProfileToFirestore(firebaseUser.uid, {
             name: firebaseUser.displayName || prefsRef.current.userName,
             email: firebaseUser.email || undefined,
@@ -187,7 +190,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             },
           });
         } catch (err) {
-          console.error('Firebase Firestore sync failed:', err);
+          console.warn('Firebase Firestore sync non-fatal warning:', err);
         } finally {
           setIsFirebaseSyncing(false);
         }
@@ -632,7 +635,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setUserId(user.uid);
         localStorage.setItem('bytebites_user_id', user.uid);
         localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, 'true');
-        const resolvedName = user.displayName || fallbackName?.trim() || userName || '';
+
+        const resolvedName = (user.displayName && user.displayName.trim())
+          ? user.displayName.trim()
+          : (fallbackName && fallbackName.trim())
+          ? fallbackName.trim()
+          : (userName && userName !== 'ضيف بايت' ? userName.trim() : '');
+
         if (resolvedName) {
           setUserNameState(resolvedName);
           localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, resolvedName);
@@ -641,14 +650,19 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setUserEmail(user.email);
           localStorage.setItem(`${LOCAL_STORAGE_KEY}_user_email`, user.email);
         }
-        await syncUserProfileToFirestore(user.uid, {
-          name: resolvedName,
-          email: user.email || undefined,
-          language,
-          theme,
-          textSize,
-          gender: prefsRef.current.gender || undefined,
-        });
+
+        try {
+          await syncUserProfileToFirestore(user.uid, {
+            name: resolvedName,
+            email: user.email || undefined,
+            language,
+            theme,
+            textSize,
+          });
+        } catch (syncErr) {
+          console.warn('Firestore profile sync non-blocking warning:', syncErr);
+        }
+
         fetch('/api/user/profile', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

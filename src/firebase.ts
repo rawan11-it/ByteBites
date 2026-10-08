@@ -21,10 +21,13 @@ import {
 import firebaseConfig from '../firebase-applet-config.json';
 import { Language, Theme, TextSize, Gender, Recipe } from './types';
 
-const app = initializeApp(firebaseConfig);
+export const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleAuthProvider = new GoogleAuthProvider();
+googleAuthProvider.setCustomParameters({
+  prompt: 'select_account',
+});
 
 export enum OperationType {
   CREATE = 'create',
@@ -90,6 +93,13 @@ testConnection();
 // Auth helper: Google popup login
 export async function signInWithGoogle(): Promise<FirebaseUser | null> {
   try {
+    if (
+      auth.currentUser &&
+      !auth.currentUser.isAnonymous &&
+      auth.currentUser.providerData.some(p => p.providerId === 'google.com' || p.providerId.includes('google'))
+    ) {
+      return auth.currentUser;
+    }
     const result = await signInWithPopup(auth, googleAuthProvider);
     return result.user;
   } catch (error) {
@@ -182,31 +192,33 @@ export function sanitizeDocId(input: string): string {
 export async function syncUserProfileToFirestore(
   userId: string,
   profile: {
-    name: string;
+    name?: string;
     email?: string;
-    language: Language;
-    theme: Theme;
-    textSize: TextSize;
+    language?: Language;
+    theme?: Theme;
+    textSize?: TextSize;
     gender?: Gender;
   }
 ) {
   if (!auth.currentUser || auth.currentUser.uid !== userId) return;
   const path = `users/${userId}`;
   try {
-    await setDoc(
-      doc(db, 'users', userId),
-      {
-        userId,
-        name: (profile.name || 'User').slice(0, 100),
-        email: profile.email ? profile.email.slice(0, 150) : '',
-        language: profile.language || 'ar',
-        theme: profile.theme || 'dark',
-        textSize: profile.textSize || 'normal',
-        gender: profile.gender || null,
-        updatedAt: new Date().toISOString(),
-      },
-      { merge: true }
-    );
+    const updatePayload: Record<string, any> = {
+      userId,
+      name: (profile.name && profile.name.trim()) ? profile.name.trim().slice(0, 100) : (auth.currentUser.displayName || 'User').slice(0, 100),
+      language: profile.language || 'ar',
+      theme: profile.theme || 'dark',
+      textSize: profile.textSize || 'normal',
+      updatedAt: new Date().toISOString(),
+    };
+    if (profile.email || auth.currentUser.email) {
+      updatePayload.email = (profile.email || auth.currentUser.email || '').slice(0, 150);
+    }
+    if (profile.gender !== undefined && profile.gender !== null) {
+      updatePayload.gender = profile.gender;
+    }
+
+    await setDoc(doc(db, 'users', userId), updatePayload, { merge: true });
   } catch (error) {
     handleFirestoreError(error, OperationType.WRITE, path);
   }

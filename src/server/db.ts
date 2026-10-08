@@ -543,6 +543,7 @@ export function getUserFullSync(userId: string) {
       language: prefs.language || 'ar',
       theme: prefs.theme || 'dark',
       textSize: prefs.text_size || 'normal',
+      gender: prefs.gender || null,
     },
     fridgeIngredients,
     savedRecipes,

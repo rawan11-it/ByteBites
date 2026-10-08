@@ -43,11 +43,25 @@ export const WelcomeScreen: React.FC = () => {
     } catch (err: any) {
       console.error('Google login error:', err);
       if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-        setAuthError(
-          language === 'ar'
-            ? 'تعذر تسجيل الدخول باستخدام Google، يمكنك المتابعة بالدخول كضيف'
-            : 'Could not sign in with Google. You can continue as a guest.'
-        );
+        if (err?.code === 'auth/popup-blocked') {
+          setAuthError(
+            language === 'ar'
+              ? 'تم حظر النافذة المنبثقة من قبل المتصفح، يرجى السماح بالنوافذ المنبثقة للمتابعة'
+              : 'Popup was blocked by the browser. Please allow popups to continue.'
+          );
+        } else if (err?.code === 'auth/network-request-failed') {
+          setAuthError(
+            language === 'ar'
+              ? 'تعذر الاتصال بخدمة تسجيل الدخول، يرجى التحقق من اتصال الإنترنت'
+              : 'Could not connect to sign-in service, please check your internet connection.'
+          );
+        } else {
+          setAuthError(
+            language === 'ar'
+              ? 'تعذر تسجيل الدخول باستخدام Google، يمكنك المتابعة بالدخول كضيف'
+              : 'Could not sign in with Google. You can continue as a guest.'
+          );
+        }
       }
     } finally {
       setIsLoadingGoogle(false);

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useApp } from '../context/AppContext';
+import { auth } from '../firebase';
 import { Recipe } from '../types';
 import { RecipeDetailView } from '../components/RecipeDetailView';
 import { initialRecipes } from '../data/recipes';
@@ -12,18 +13,41 @@ export const HomeScreen: React.FC = () => {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
 
   const getGreetingTitle = () => {
-    if (language === 'ar') {
-      const hasRealName = Boolean(userName && userName.trim() && userName !== 'ضيف بايت' && isGoogleLoggedIn);
-      if (gender === 'female') {
-        return hasRealName ? `حي الله ضيفتنا ${userName} 👋` : 'حي الله ضيفتنا 👋';
+    // Determine authentication method strictly from actual Firebase authentication state/provider
+    const isGoogleAuth = Boolean(
+      (auth.currentUser && !auth.currentUser.isAnonymous) || isGoogleLoggedIn
+    );
+
+    if (isGoogleAuth) {
+      // For Google users: Personalized greeting using available Google display name.
+      // Must NOT display "حي الله ضيفنا 👋" or "حي الله ضيفتنا 👋".
+      // Must NOT use the guest gender preference.
+      const googleDisplayName = auth.currentUser?.displayName?.trim() || (userName && userName !== 'ضيف بايت' ? userName.trim() : '');
+
+      if (language === 'ar') {
+        if (googleDisplayName) {
+          return `حي الله ${googleDisplayName} 👋`;
+        }
+        // If Google display name is unavailable, show a neutral Arabic welcome message instead of guest greeting
+        return 'أهلاً وسهلاً بك 👋';
       }
-      if (gender === 'male') {
-        return hasRealName ? `حي الله ضيفنا ${userName} 👋` : 'حي الله ضيفنا 👋';
-      }
-      return hasRealName ? `أهلاً بك ${userName} 👋` : 'حي الله ضيفنا 👋';
+
+      return googleDisplayName ? `Welcome ${googleDisplayName} 👋` : 'Welcome 👋';
     }
-    const hasRealName = Boolean(userName && userName.trim() && userName !== 'ضيف بايت' && isGoogleLoggedIn);
-    return hasRealName ? `Welcome ${userName} 👋` : 'Welcome Guest 👋';
+
+    // For authenticated guest users only: keep guest greeting behavior as it is
+    if (language === 'ar') {
+      if (gender === 'female' || gender === 'أنثى') {
+        return 'حي الله ضيفتنا 👋';
+      }
+      if (gender === 'male' || gender === 'ذكر') {
+        return 'حي الله ضيفنا 👋';
+      }
+      // If no gender preference is selected, use existing neutral guest greeting
+      return 'حي الله ضيفنا 👋';
+    }
+
+    return 'Welcome Guest 👋';
   };
 
   const handleOpenRecipe = (recipeId: string) => {
