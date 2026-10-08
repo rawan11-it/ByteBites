@@ -9,6 +9,8 @@ export const WelcomeScreen: React.FC = () => {
     language,
     loginAsGuest,
     loginWithGoogle,
+    isRedirectProcessing,
+    redirectAuthError,
   } = useApp();
 
   const [isLoadingGuest, setIsLoadingGuest] = useState(false);
@@ -17,9 +19,35 @@ export const WelcomeScreen: React.FC = () => {
 
   const isDark = theme === 'dark';
 
+  // Synchronize redirect auth error if returning from Google redirect
+  useEffect(() => {
+    if (redirectAuthError) {
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'Render';
+      if (redirectAuthError === 'auth/unauthorized-domain') {
+        setAuthError(
+          language === 'ar'
+            ? `نطاق الموقع الحالي (${currentHost}) غير مصرّح به في Firebase Authentication. يرجى إضافة هذا النطاق في إعدادات النطاقات المعتمدة (Authorized Domains) في Firebase Console.`
+            : `Domain (${currentHost}) is not authorized in Firebase Authentication. Please add it to Authorized Domains in Firebase Console.`
+        );
+      } else if (redirectAuthError === 'auth/operation-not-allowed') {
+        setAuthError(
+          language === 'ar'
+            ? 'تسجيل الدخول عبر Google غير مفعّل في Firebase Authentication.'
+            : 'Google Sign-in is not enabled in Firebase Authentication.'
+        );
+      } else {
+        setAuthError(
+          language === 'ar'
+            ? `تعذر إتمام تسجيل الدخول عبر Google (${redirectAuthError}). يمكنك المتابعة بالدخول كضيف.`
+            : `Could not complete Google sign-in (${redirectAuthError}). You can continue as a guest.`
+        );
+      }
+    }
+  }, [redirectAuthError, language]);
+
   const handleGuestLogin = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
-    if (isLoadingGuest || isLoadingGoogle) return;
+    if (isLoadingGuest || isLoadingGoogle || isRedirectProcessing) return;
     setAuthError(null);
     setIsLoadingGuest(true);
     try {
@@ -34,34 +62,53 @@ export const WelcomeScreen: React.FC = () => {
   };
 
   const handleGoogleSignIn = async () => {
-    if (isLoadingGuest || isLoadingGoogle) return;
+    if (isLoadingGuest || isLoadingGoogle || isRedirectProcessing) return;
     setAuthError(null);
     setIsLoadingGoogle(true);
     try {
-      await loginWithGoogle();
-      navigateTo('home');
+      const res = await loginWithGoogle();
+      if (res && res.isRedirecting) {
+        // Navigating to Google OAuth flow on mobile Safari
+        return;
+      }
+      if (res && res.success) {
+        navigateTo('home');
+      }
     } catch (err: any) {
       console.error('Google login error:', err);
-      if (err?.code !== 'auth/popup-closed-by-user' && err?.code !== 'auth/cancelled-popup-request') {
-        if (err?.code === 'auth/popup-blocked') {
-          setAuthError(
-            language === 'ar'
-              ? 'تم حظر النافذة المنبثقة من قبل المتصفح، يرجى السماح بالنوافذ المنبثقة للمتابعة'
-              : 'Popup was blocked by the browser. Please allow popups to continue.'
-          );
-        } else if (err?.code === 'auth/network-request-failed') {
-          setAuthError(
-            language === 'ar'
-              ? 'تعذر الاتصال بخدمة تسجيل الدخول، يرجى التحقق من اتصال الإنترنت'
-              : 'Could not connect to sign-in service, please check your internet connection.'
-          );
-        } else {
-          setAuthError(
-            language === 'ar'
-              ? 'تعذر تسجيل الدخول باستخدام Google، يمكنك المتابعة بالدخول كضيف'
-              : 'Could not sign in with Google. You can continue as a guest.'
-          );
-        }
+      const currentHost = typeof window !== 'undefined' ? window.location.hostname : 'Render';
+      if (err?.code === 'auth/unauthorized-domain') {
+        setAuthError(
+          language === 'ar'
+            ? `نطاق الموقع الحالي (${currentHost}) غير مصرّح به في Firebase Authentication. يرجى إضافة هذا النطاق في إعدادات النطاقات المعتمدة (Authorized Domains) في Firebase Console.`
+            : `Domain (${currentHost}) is not authorized in Firebase Authentication. Please add it to Authorized Domains in Firebase Console.`
+        );
+      } else if (err?.code === 'auth/operation-not-allowed') {
+        setAuthError(
+          language === 'ar'
+            ? 'تسجيل الدخول عبر Google غير مفعّل في Firebase Authentication.'
+            : 'Google Sign-in is not enabled in Firebase Authentication.'
+        );
+      } else if (err?.code === 'auth/popup-blocked') {
+        setAuthError(
+          language === 'ar'
+            ? 'تم حظر النافذة المنبثقة من قبل المتصفح، يرجى السماح بالنوافذ المنبثقة للمتابعة.'
+            : 'Popup was blocked by the browser. Please allow popups to continue.'
+        );
+      } else if (err?.code === 'auth/network-request-failed') {
+        setAuthError(
+          language === 'ar'
+            ? 'تعذر الاتصال بخدمة تسجيل الدخول، يرجى التحقق من اتصال الإنترنت.'
+            : 'Could not connect to sign-in service, please check your internet connection.'
+        );
+      } else if (err?.code === 'auth/popup-closed-by-user' || err?.code === 'auth/cancelled-popup-request') {
+        setAuthError(null);
+      } else {
+        setAuthError(
+          language === 'ar'
+            ? `تعذر تسجيل الدخول باستخدام Google (${err?.code || 'خطأ غير متوقع'}). يمكنك المتابعة بالدخول كضيف.`
+            : `Could not sign in with Google (${err?.code || 'Unexpected error'}). You can continue as a guest.`
+        );
       }
     } finally {
       setIsLoadingGoogle(false);
@@ -81,6 +128,28 @@ export const WelcomeScreen: React.FC = () => {
     }));
     setParticles(items);
   }, []);
+
+  if (isRedirectProcessing) {
+    return (
+      <div
+        id="welcome-screen-container"
+        className={`min-h-screen w-full flex flex-col items-center justify-center p-6 relative overflow-hidden select-none ${
+          isDark ? 'bg-[#061914] text-white' : 'bg-[#e6f7f2] text-[#00352f]'
+        }`}
+      >
+        <div className="flex flex-col items-center justify-center gap-4 z-10 text-center">
+          <div
+            className={`w-10 h-10 border-3 border-current border-t-transparent rounded-full animate-spin ${
+              isDark ? 'text-[#00f9cb]' : 'text-[#006853]'
+            }`}
+          />
+          <p className="font-headline-md text-sm sm:text-base font-bold">
+            {language === 'ar' ? 'جارٍ إتمام تسجيل الدخول باستخدام Google...' : 'Completing Google sign-in...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -196,7 +265,7 @@ export const WelcomeScreen: React.FC = () => {
             id="welcome-guest-login-button"
             type="button"
             onClick={handleGuestLogin}
-            disabled={isLoadingGuest || isLoadingGoogle}
+            disabled={isLoadingGuest || isLoadingGoogle || isRedirectProcessing}
             style={{ height: '39.6px' }}
             className={`w-full h-[39.6px] px-4 sm:px-6 rounded-full font-headline-md text-sm sm:text-base transition-all active:scale-95 duration-200 cursor-pointer flex items-center justify-center gap-2 font-bold shadow-md ${
               isDark
@@ -230,7 +299,7 @@ export const WelcomeScreen: React.FC = () => {
             id="welcome-google-signin-button"
             type="button"
             onClick={handleGoogleSignIn}
-            disabled={isLoadingGuest || isLoadingGoogle}
+            disabled={isLoadingGuest || isLoadingGoogle || isRedirectProcessing}
             className={`w-full flex items-center justify-center gap-2.5 sm:gap-3 rounded-full py-2.5 sm:py-3 px-4 sm:px-6 font-headline-md text-xs sm:text-sm transition-all shadow-md active:scale-95 duration-200 cursor-pointer bg-white text-[#00352f] ${
               isDark
                 ? 'hover:bg-gray-50 border border-white/30'

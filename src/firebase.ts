@@ -3,6 +3,11 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+  setPersistence,
+  browserLocalPersistence,
+  browserSessionPersistence,
   signInAnonymously,
   signOut,
   onAuthStateChanged,
@@ -28,6 +33,15 @@ export const googleAuthProvider = new GoogleAuthProvider();
 googleAuthProvider.setCustomParameters({
   prompt: 'select_account',
 });
+
+// Configure browser persistence gracefully for mobile browsers and private windows
+if (typeof window !== 'undefined') {
+  try {
+    setPersistence(auth, browserLocalPersistence).catch(() => {
+      setPersistence(auth, browserSessionPersistence).catch(() => {});
+    });
+  } catch {}
+}
 
 export enum OperationType {
   CREATE = 'create',
@@ -90,18 +104,82 @@ export async function testConnection() {
 
 testConnection();
 
-// Auth helper: Google popup login
-export async function signInWithGoogle(): Promise<FirebaseUser | null> {
+// Detect mobile environment (iPhone Safari, iPad, Android, etc.) where popups are blocked or fail
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = (navigator.userAgent || navigator.vendor || (window as any).opera || '').toLowerCase();
+  const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini|mobile|silk/i.test(ua);
+  const isIOS = /iphone|ipad|ipod/i.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isSmallTouch = ('ontouchstart' in window || navigator.maxTouchPoints > 0) && window.innerWidth <= 820;
+  return isMobileUA || isIOS || isSmallTouch;
+}
+
+let redirectResultPromise: Promise<FirebaseUser | null> | null = null;
+
+// Catch and process redirect result once when app loads
+export async function checkRedirectResult(): Promise<FirebaseUser | null> {
+  if (typeof window === 'undefined') return null;
+  if (redirectResultPromise) return redirectResultPromise;
+
+  redirectResultPromise = (async () => {
+    try {
+      const result = await getRedirectResult(auth);
+      sessionStorage.removeItem('bytebites_auth_redirect');
+      if (result && result.user) {
+        return result.user;
+      }
+      return null;
+    } catch (error: any) {
+      sessionStorage.removeItem('bytebites_auth_redirect');
+      console.error('Firebase redirect auth error:', error);
+      throw error;
+    }
+  })();
+
+  return redirectResultPromise;
+}
+
+// Auth helper: Google Sign-in with native mobile redirect & desktop popup fallback
+export async function signInWithGoogle(): Promise<{ user: FirebaseUser | null; isRedirecting: boolean }> {
   try {
     if (
       auth.currentUser &&
       !auth.currentUser.isAnonymous &&
       auth.currentUser.providerData.some(p => p.providerId === 'google.com' || p.providerId.includes('google'))
     ) {
-      return auth.currentUser;
+      return { user: auth.currentUser, isRedirecting: false };
     }
-    const result = await signInWithPopup(auth, googleAuthProvider);
-    return result.user;
+
+    const useRedirect = isMobileDevice();
+
+    if (useRedirect) {
+      if (typeof window !== 'undefined') {
+        sessionStorage.setItem('bytebites_auth_redirect', 'pending');
+      }
+      await signInWithRedirect(auth, googleAuthProvider);
+      return { user: null, isRedirecting: true };
+    }
+
+    // On desktop, try popup first
+    try {
+      const result = await signInWithPopup(auth, googleAuthProvider);
+      return { user: result.user, isRedirecting: false };
+    } catch (popupError: any) {
+      // If popup was blocked or unsupported on desktop, smoothly fallback to redirect
+      if (
+        popupError?.code === 'auth/popup-blocked' ||
+        popupError?.code === 'auth/operation-not-supported-in-this-environment' ||
+        popupError?.code === 'auth/cancelled-popup-request'
+      ) {
+        console.warn('Popup blocked or unsupported, falling back to redirect:', popupError?.code);
+        if (typeof window !== 'undefined') {
+          sessionStorage.setItem('bytebites_auth_redirect', 'pending');
+        }
+        await signInWithRedirect(auth, googleAuthProvider);
+        return { user: null, isRedirecting: true };
+      }
+      throw popupError;
+    }
   } catch (error) {
     console.error('Firebase Google sign-in failed:', error);
     throw error;
@@ -166,6 +244,9 @@ export function clearActiveSubscriptions() {
 // Auth helper: Sign out
 export async function signOutUser(): Promise<void> {
   clearActiveSubscriptions();
+  if (typeof window !== 'undefined') {
+    sessionStorage.removeItem('bytebites_auth_redirect');
+  }
   try {
     await signOut(auth);
   } catch (error) {

@@ -6,6 +6,7 @@ import { resolveRecipeImage } from '../utils/recipeImageEngine';
 import {
   auth,
   signInWithGoogle,
+  checkRedirectResult,
   signInAsGuest,
   signOutUser,
   clearActiveSubscriptions,
@@ -29,6 +30,8 @@ interface AppContextType {
   userName: string;
   isGoogleLoggedIn: boolean;
   isFirebaseSyncing: boolean;
+  isRedirectProcessing: boolean;
+  redirectAuthError: string | null;
   savedRecipeIds: string[];
   activeRecipeId: string;
   activeRecipe: Recipe;
@@ -48,7 +51,7 @@ interface AppContextType {
   isRecipeSaved: (recipeId: string) => boolean;
   toggleGoogleLogin: () => void;
   loginAsGuest: (displayName?: string) => Promise<void>;
-  loginWithGoogle: (fallbackName?: string) => Promise<void>;
+  loginWithGoogle: (fallbackName?: string) => Promise<{ success: boolean; isRedirecting: boolean } | void>;
   savedRecipesList: Recipe[];
   userKitchenRecipes: Recipe[];
   setFridgeIngredients: React.Dispatch<React.SetStateAction<string[]>>;
@@ -118,10 +121,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return localStorage.getItem(`${LOCAL_STORAGE_KEY}_is_logged_in`) === 'true';
   });
 
+  const [isRedirectProcessing, setIsRedirectProcessing] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem('bytebites_auth_redirect') === 'pending';
+    }
+    return false;
+  });
+
+  const [redirectAuthError, setRedirectAuthError] = useState<string | null>(null);
+
   const prefsRef = useRef({ language, theme, textSize, userName, gender });
   useEffect(() => {
     prefsRef.current = { language, theme, textSize, userName, gender };
   }, [language, theme, textSize, userName, gender]);
+
+  // Check and process Firebase redirect results (crucial for mobile Safari on iPhone)
+  useEffect(() => {
+    let isMounted = true;
+    const hasRedirectPending = typeof window !== 'undefined' && sessionStorage.getItem('bytebites_auth_redirect') === 'pending';
+    if (hasRedirectPending) {
+      setIsRedirectProcessing(true);
+    }
+
+    checkRedirectResult()
+      .then(async (user) => {
+        if (!isMounted) return;
+        if (user) {
+          setIsGoogleLoggedIn(true);
+          setUserId(user.uid);
+          localStorage.setItem('bytebites_user_id', user.uid);
+          localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, 'true');
+
+          if (user.displayName) {
+            setUserNameState(user.displayName);
+            localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, user.displayName);
+          }
+          if (user.email) {
+            setUserEmail(user.email);
+            localStorage.setItem(`${LOCAL_STORAGE_KEY}_user_email`, user.email);
+          }
+
+          setCurrentPageState('home');
+
+          try {
+            await syncUserProfileToFirestore(user.uid, {
+              name: user.displayName || prefsRef.current.userName,
+              email: user.email || undefined,
+              language: prefsRef.current.language,
+              theme: prefsRef.current.theme,
+              textSize: prefsRef.current.textSize,
+            });
+          } catch (syncErr) {
+            console.warn('Firestore profile sync non-blocking warning:', syncErr);
+          }
+
+          fetch('/api/user/profile', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: user.uid,
+              name: user.displayName || '',
+              isGoogle: true,
+              email: user.email || '',
+            }),
+          }).catch(err => console.error('Error updating Google login in DB:', err));
+        }
+      })
+      .catch((err) => {
+        if (!isMounted) return;
+        console.error('Redirect sign-in error in AppContext:', err);
+        setRedirectAuthError(err?.code || err?.message || String(err));
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsRedirectProcessing(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Sync with Firebase Authentication & Firestore
   useEffect(() => {
@@ -627,9 +707,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const loginWithGoogle = async (fallbackName?: string) => {
+  const loginWithGoogle = async (fallbackName?: string): Promise<{ success: boolean; isRedirecting: boolean }> => {
     try {
-      const user = await signInWithGoogle();
+      const { user, isRedirecting } = await signInWithGoogle();
+      if (isRedirecting) {
+        setIsRedirectProcessing(true);
+        return { success: true, isRedirecting: true };
+      }
       if (user) {
         setIsGoogleLoggedIn(true);
         setUserId(user.uid);
@@ -673,7 +757,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             email: user.email || '',
           }),
         }).catch(err => console.error('Error updating Google login in DB:', err));
+
+        return { success: true, isRedirecting: false };
       }
+      return { success: false, isRedirecting: false };
     } catch (err) {
       console.error('Firebase Google sign-in failed:', err);
       throw err;
@@ -855,6 +942,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userName,
         isGoogleLoggedIn,
         isFirebaseSyncing,
+        isRedirectProcessing,
+        redirectAuthError,
         savedRecipeIds,
         activeRecipeId,
         activeRecipe,
