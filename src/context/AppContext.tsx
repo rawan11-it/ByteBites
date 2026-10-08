@@ -30,6 +30,7 @@ interface AppContextType {
   userName: string;
   isGoogleLoggedIn: boolean;
   isFirebaseSyncing: boolean;
+  isAuthInitializing: boolean;
   isRedirectProcessing: boolean;
   redirectAuthError: string | null;
   savedRecipeIds: string[];
@@ -121,6 +122,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return localStorage.getItem(`${LOCAL_STORAGE_KEY}_is_logged_in`) === 'true';
   });
 
+  const [isAuthInitializing, setIsAuthInitializing] = useState<boolean>(true);
+
   const [isRedirectProcessing, setIsRedirectProcessing] = useState<boolean>(() => {
     if (typeof window !== 'undefined') {
       return sessionStorage.getItem('bytebites_auth_redirect') === 'pending';
@@ -135,38 +138,48 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     prefsRef.current = { language, theme, textSize, userName, gender };
   }, [language, theme, textSize, userName, gender]);
 
-  // Check and process Firebase redirect results (crucial for mobile Safari on iPhone)
+  // Unified Firebase Authentication & Session Restoration (Handles Redirects, Mobile Safari, & Reloads)
   useEffect(() => {
     let isMounted = true;
-    const hasRedirectPending = typeof window !== 'undefined' && sessionStorage.getItem('bytebites_auth_redirect') === 'pending';
-    if (hasRedirectPending) {
-      setIsRedirectProcessing(true);
-    }
+    let unsubSnapshot: (() => void) | null = null;
+    let authListenerFired = false;
+    let redirectCheckCompleted = false;
 
+    const maybeFinishAuthInit = () => {
+      if (isMounted && authListenerFired && redirectCheckCompleted) {
+        setIsAuthInitializing(false);
+        setIsRedirectProcessing(false);
+      }
+    };
+
+    // 1. Process Google redirect result if returning from Google Auth
     checkRedirectResult()
-      .then(async (user) => {
+      .then(async (redirectUser) => {
         if (!isMounted) return;
-        if (user) {
+        if (redirectUser) {
           setIsGoogleLoggedIn(true);
-          setUserId(user.uid);
-          localStorage.setItem('bytebites_user_id', user.uid);
+          setUserId(redirectUser.uid);
+          localStorage.setItem('bytebites_user_id', redirectUser.uid);
           localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, 'true');
 
-          if (user.displayName) {
-            setUserNameState(user.displayName);
-            localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, user.displayName);
+          if (redirectUser.displayName) {
+            setUserNameState(redirectUser.displayName);
+            localStorage.setItem(`${LOCAL_STORAGE_KEY}_user`, redirectUser.displayName);
           }
-          if (user.email) {
-            setUserEmail(user.email);
-            localStorage.setItem(`${LOCAL_STORAGE_KEY}_user_email`, user.email);
+          if (redirectUser.email) {
+            setUserEmail(redirectUser.email);
+            localStorage.setItem(`${LOCAL_STORAGE_KEY}_user_email`, redirectUser.email);
           }
 
           setCurrentPageState('home');
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('bytebites_active_page', 'home');
+          }
 
           try {
-            await syncUserProfileToFirestore(user.uid, {
-              name: user.displayName || prefsRef.current.userName,
-              email: user.email || undefined,
+            await syncUserProfileToFirestore(redirectUser.uid, {
+              name: redirectUser.displayName || prefsRef.current.userName,
+              email: redirectUser.email || undefined,
               language: prefsRef.current.language,
               theme: prefsRef.current.theme,
               textSize: prefsRef.current.textSize,
@@ -179,10 +192,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              userId: user.uid,
-              name: user.displayName || '',
+              userId: redirectUser.uid,
+              name: redirectUser.displayName || '',
               isGoogle: true,
-              email: user.email || '',
+              email: redirectUser.email || '',
             }),
           }).catch(err => console.error('Error updating Google login in DB:', err));
         }
@@ -193,21 +206,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setRedirectAuthError(err?.code || err?.message || String(err));
       })
       .finally(() => {
-        if (isMounted) {
-          setIsRedirectProcessing(false);
-        }
+        redirectCheckCompleted = true;
+        maybeFinishAuthInit();
       });
 
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  // Sync with Firebase Authentication & Firestore
-  useEffect(() => {
-    let unsubSnapshot: (() => void) | null = null;
-
+    // 2. Synchronize with Firebase Auth session state (fires immediately with restored user on page load/redirect)
     const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!isMounted) return;
+
       if (firebaseUser) {
         const isGoogle = !firebaseUser.isAnonymous && (
           firebaseUser.providerData.some(p => p.providerId === 'google.com' || p.providerId.includes('google')) ||
@@ -236,6 +242,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } else if (firebaseUser.isAnonymous) {
           setUserEmail('');
           localStorage.removeItem(`${LOCAL_STORAGE_KEY}_user_email`);
+        }
+
+        // When authenticated with Google, transition to home page or active page so user is not stuck on welcome screen
+        if (isGoogle) {
+          setCurrentPageState(prev => {
+            if (prev === 'welcome') {
+              const savedActivePage = typeof window !== 'undefined' ? (sessionStorage.getItem('bytebites_active_page') as Page) : null;
+              return (savedActivePage && savedActivePage !== 'welcome') ? savedActivePage : 'home';
+            }
+            return prev;
+          });
         }
 
         setIsFirebaseSyncing(true);
@@ -272,7 +289,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         } catch (err) {
           console.warn('Firebase Firestore sync non-fatal warning:', err);
         } finally {
-          setIsFirebaseSyncing(false);
+          if (isMounted) {
+            setIsFirebaseSyncing(false);
+          }
         }
       } else {
         setIsGoogleLoggedIn(false);
@@ -283,9 +302,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         }
         clearActiveSubscriptions();
       }
+
+      authListenerFired = true;
+      maybeFinishAuthInit();
     });
 
     return () => {
+      isMounted = false;
       if (unsubSnapshot) {
         unsubSnapshot();
       }
@@ -615,6 +638,13 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setIsWheelIngredientMode(wheelWithIngredients === true);
     }
     setCurrentPageState(page);
+    if (typeof window !== 'undefined') {
+      if (page !== 'welcome') {
+        sessionStorage.setItem('bytebites_active_page', page);
+      } else {
+        sessionStorage.removeItem('bytebites_active_page');
+      }
+    }
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -776,6 +806,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       }
       setIsGoogleLoggedIn(false);
       localStorage.setItem(`${LOCAL_STORAGE_KEY}_is_logged_in`, 'false');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('bytebites_active_page');
+        sessionStorage.removeItem('bytebites_auth_redirect');
+      }
+      setCurrentPageState('welcome');
       fetch('/api/user/profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -942,6 +977,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         userName,
         isGoogleLoggedIn,
         isFirebaseSyncing,
+        isAuthInitializing,
         isRedirectProcessing,
         redirectAuthError,
         savedRecipeIds,

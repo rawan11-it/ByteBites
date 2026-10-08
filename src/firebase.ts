@@ -124,13 +124,33 @@ export async function checkRedirectResult(): Promise<FirebaseUser | null> {
   redirectResultPromise = (async () => {
     try {
       const result = await getRedirectResult(auth);
-      sessionStorage.removeItem('bytebites_auth_redirect');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('bytebites_auth_redirect');
+      }
       if (result && result.user) {
         return result.user;
       }
+      // If getRedirectResult returned null, check if auth.currentUser already exists in the active session
+      if (auth.currentUser && !auth.currentUser.isAnonymous) {
+        return auth.currentUser;
+      }
       return null;
     } catch (error: any) {
-      sessionStorage.removeItem('bytebites_auth_redirect');
+      if (typeof window !== 'undefined') {
+        sessionStorage.removeItem('bytebites_auth_redirect');
+      }
+      // If auth.currentUser is already valid despite redirect error, preserve session
+      if (auth.currentUser && !auth.currentUser.isAnonymous) {
+        return auth.currentUser;
+      }
+      // Ignore user cancellation gracefully
+      if (
+        error?.code === 'auth/redirect-cancelled-by-user' ||
+        error?.code === 'auth/popup-closed-by-user' ||
+        error?.code === 'auth/cancelled-popup-request'
+      ) {
+        return null;
+      }
       console.error('Firebase redirect auth error:', error);
       throw error;
     }
@@ -139,7 +159,7 @@ export async function checkRedirectResult(): Promise<FirebaseUser | null> {
   return redirectResultPromise;
 }
 
-// Auth helper: Google Sign-in with native mobile redirect & desktop popup fallback
+// Auth helper: Google Sign-in with native popup and automatic redirect fallback
 export async function signInWithGoogle(): Promise<{ user: FirebaseUser | null; isRedirecting: boolean }> {
   try {
     if (
@@ -150,28 +170,19 @@ export async function signInWithGoogle(): Promise<{ user: FirebaseUser | null; i
       return { user: auth.currentUser, isRedirecting: false };
     }
 
-    const useRedirect = isMobileDevice();
-
-    if (useRedirect) {
-      if (typeof window !== 'undefined') {
-        sessionStorage.setItem('bytebites_auth_redirect', 'pending');
-      }
-      await signInWithRedirect(auth, googleAuthProvider);
-      return { user: null, isRedirecting: true };
-    }
-
-    // On desktop, try popup first
+    // Try popup first (preserves tab state and succeeds seamlessly when tapped)
     try {
       const result = await signInWithPopup(auth, googleAuthProvider);
       return { user: result.user, isRedirecting: false };
     } catch (popupError: any) {
-      // If popup was blocked or unsupported on desktop, smoothly fallback to redirect
+      // If popup was blocked by browser (common on mobile Safari) or unsupported, fall back to redirect
       if (
         popupError?.code === 'auth/popup-blocked' ||
         popupError?.code === 'auth/operation-not-supported-in-this-environment' ||
-        popupError?.code === 'auth/cancelled-popup-request'
+        popupError?.code === 'auth/cancelled-popup-request' ||
+        isMobileDevice()
       ) {
-        console.warn('Popup blocked or unsupported, falling back to redirect:', popupError?.code);
+        console.warn('Popup unavailable or blocked, falling back to redirect:', popupError?.code);
         if (typeof window !== 'undefined') {
           sessionStorage.setItem('bytebites_auth_redirect', 'pending');
         }
@@ -246,6 +257,7 @@ export async function signOutUser(): Promise<void> {
   clearActiveSubscriptions();
   if (typeof window !== 'undefined') {
     sessionStorage.removeItem('bytebites_auth_redirect');
+    sessionStorage.removeItem('bytebites_active_page');
   }
   try {
     await signOut(auth);
